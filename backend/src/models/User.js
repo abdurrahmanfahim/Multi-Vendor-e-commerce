@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 const bcrypt = require("bcryptjs");
+const { maxLength } = require("zod");
 
 const userSchema = new Schema(
   {
@@ -51,10 +52,65 @@ const userSchema = new Schema(
           default: Date.now(),
         },
         expiresAt: {
-          type: Date
-        }
+          type: Date,
+        },
       },
     ],
+
+    shopName: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    shopDescription: {
+      type: String,
+      trim: true,
+      maxLength: 1000,
+    },
+
+    shopAddress: {
+      type: String,
+      trim: true,
+    },
+
+    shopLogo: {
+      type: String,
+    },
+
+    nidNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    bankInfo: {
+      bankName: String,
+      branchName: String,
+      accountHolder: String,
+      accountNumber: String,
+      routingNumber: String,
+    },
+
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "suspended"],
+      default: "customer",
+    },
+
+    approvedAt: {
+      type: Date,
+    },
+
+    rejectReason: {
+      type: String,
+      trim: true,
+    },
+
+    rejectedAt: {
+      type: Date,
+      default: null,
+    },
 
     createdAt: {
       type: Date,
@@ -70,7 +126,25 @@ userSchema.pre("save", async function () {
 
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
 
+userSchema.pre("save", function (next) {
+  if (this.isModified("role") && this.role === "vendor" && !this.approvedAt) {
+    this.status = "pending";
+  }
+
+  if (this.role !== "vendor") {
+    this.status = "customer";
+    this.approvedAt = null;
+    this.rejectReason = null;
+    this.shopName = null;
+    this.shopDescription = null;
+    this.shopAddress = null;
+    this.shopLogo = null;
+    this.nidNumber = null;
+    this.bankInfo = null;
+  }
 });
 
 // Compare Password

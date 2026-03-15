@@ -202,11 +202,145 @@ exports.refreshToken = async (req, res) => {
           { expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
         );
 
-        res.status(200).json({success: true, accessToken: newAccessToken})
+        res.status(200).json({ success: true, accessToken: newAccessToken });
       },
     );
   } catch (error) {
-    console.log('Server error during handle with refresh token: ', error)
-    res.status(500).json({message: 'Server error!'})
+    console.log("Server error during handle with refresh token: ", error);
+    res.status(500).json({ message: "Server error!" });
   }
 };
+
+exports.logout = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) {
+      return res.status(204).send();
+    }
+
+    // find user
+    const user = await User.findOne({
+      refreshTokens: { $elemMatch: { token: refreshToken } },
+    });
+
+    if (user) {
+      user.refreshTokens = user.refreshTokens.filter(
+        (rt) => rt.token !== refreshToken,
+      );
+      await user.save();
+    }
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: (process.env.NODE_ENV = "production"),
+      sameSite: "strict",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully!",
+    });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({ message: "Server error during logout" });
+  }
+};
+
+exports.logoutAll = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found!" });
+    }
+
+    user.refreshTokens = [];
+
+    await user.save();
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: (process.env.NODE_ENV = "production"),
+      sameSite: "strict",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out from all devices successfully!",
+    });
+
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({message: 'Server error during '})
+  }
+};
+
+exports.registerVendor = async (req, res) => {
+  try {
+    const validateData = req.body;
+    const { name, email, password, phone, shopName, shopDescription, shopAddress, nidNumber, bankInfo } = validateData;
+
+    if (!name || !email || !password || !shopName || !shopDescription || !shopAddress || !nidNumber || !bankInfo) {
+      return res.status(400).json({ message: "All fields are required!" });
+    }
+
+    // Check if user already exist
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered! You are already a vendor or customer.",
+      });
+    }
+
+    // check duplicate nid number
+    const existingNid = await User.findOne({ nidNumber });
+    if (existingNid) {
+      return res.status(409).json({
+        success: false,
+        message: "NID number already registered! You are already a vendor.",
+      });
+    }
+
+    // Create user
+    const user = new User({
+      name,
+      email,
+      password,
+      phone: phone || undefined,
+      role: "vendor",
+      shopName,
+      shopDescription,
+      shopAddress,
+      nidNumber,
+      bankInfo,
+      status: "pending", // auto set by pre-save
+    });
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Vendor registration successful! Your account is pending for approval.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        shopName: user.shopName,
+        shopDescription: user.shopDescription,
+        shopAddress: user.shopAddress,
+        nidNumber: user.nidNumber,
+        bankInfo: user.bankInfo,
+        status: user.status,
+      },
+    });
+
+
+  } catch (error) { 
+    console.log("Server error during vendor registration!", error);
+    res.status(500).json({ message: "Server error during vendor registration!" });
+  }
+}
