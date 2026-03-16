@@ -1,10 +1,13 @@
+const { z } = require('zod');
+
 const validate = (schema) => async (req, res, next) => {
   try {
     await schema.parseAsync(req.body);
     next();
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const formattedError = error.errors.map((err) => ({
+      const issues = error.issues || error.errors || [];
+      const formattedError = issues.map((err) => ({
         field: err.path.join("-"),
         message: err.message,
       }));

@@ -27,10 +27,7 @@ const registrationSchema = z.object({
     })
     .optional(),
 
-  role: z
-    .enum(["customer", "vender"], { message: "Invalid role!" })
-    .optional()
-    .default("customer"),
+  role: z.literal("customer").optional().default("customer").catch("customer"),
 });
 
 const loginSchema = z.object({

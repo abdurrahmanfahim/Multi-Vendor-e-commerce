@@ -94,7 +94,7 @@ const userSchema = new Schema(
 
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "suspended"],
+      enum: ["pending", "approved", "rejected", "suspended", "customer"],
       default: "customer",
     },
 
@@ -126,24 +126,23 @@ userSchema.pre("save", async function () {
 
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
-userSchema.pre("save", function (next) {
+userSchema.pre("save", async function () {
   if (this.isModified("role") && this.role === "vendor" && !this.approvedAt) {
     this.status = "pending";
   }
 
   if (this.role !== "vendor") {
     this.status = "customer";
-    this.approvedAt = null;
-    this.rejectReason = null;
-    this.shopName = null;
-    this.shopDescription = null;
-    this.shopAddress = null;
-    this.shopLogo = null;
-    this.nidNumber = null;
-    this.bankInfo = null;
+    this.approvedAt = undefined;
+    this.rejectReason = undefined;
+    this.shopName = undefined;
+    this.shopDescription = undefined;
+    this.shopAddress = undefined;
+    this.shopLogo = undefined;
+    this.nidNumber = undefined;
+    this.bankInfo = undefined;
   }
 });
 

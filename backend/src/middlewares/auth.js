@@ -5,7 +5,7 @@ const protect = async (req, res, next) => {
   const bearer = req.headers.authorization;
   let token;
 
-  if (bearer && bearer.startWith("Bearer")) {
+  if (bearer && bearer.startsWith("Bearer ")) {
     token = bearer.split(" ")[1];
   }
 
@@ -19,7 +19,10 @@ const protect = async (req, res, next) => {
     next();
   } catch (error) {
     console.log("error during Check token in middleware: ", error);
-    return res.status(401).json({ message: "Not authorized, no token found!" });
+    const message = error.name === "TokenExpiredError"
+      ? "Not authorized, token expired!"
+      : "Not authorized, invalid token!";
+    return res.status(401).json({ message });
   }
 };
 

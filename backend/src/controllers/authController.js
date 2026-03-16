@@ -6,7 +6,6 @@ const nodemailer = require("nodemailer");
 const { v4: uuidv4 } = require("uuid");
 
 exports.register = async (req, res) => {
-  console.log("first");
 
   try {
     const { name, email, password, phone, role } = req.body;
@@ -80,6 +79,16 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const messages = {
+        email: "Email already registered!",
+        phone: "Phone number already registered!",
+        shopName: "Shop name already taken!",
+        nidNumber: "NID number already registered!",
+      };
+      return res.status(409).json({ success: false, message: messages[field] || "Duplicate value error!" });
+    }
     console.log("error: ", error);
     res.status(500).json({
       success: false,
@@ -144,6 +153,7 @@ exports.login = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Login Successful!",
+      accessToken,
       user: {
         id: user._id,
         name: user.name,
@@ -249,7 +259,25 @@ exports.logout = async (req, res) => {
 
 exports.logoutAll = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    let userId;
+
+    if (req.user && req.user.id) {
+      userId = req.user.id;
+    } else {
+      const refreshToken = req.cookies?.refreshToken;
+      if (!refreshToken) {
+        return res.status(401).json({ success: false, message: "Not authorized" });
+      }
+
+      try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        userId = decoded.id;
+      } catch (error) {
+        return res.status(401).json({ success: false, message: "Invalid refresh token" });
+      }
+    }
+
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: "User not found!" });
@@ -339,7 +367,17 @@ exports.registerVendor = async (req, res) => {
     });
 
 
-  } catch (error) { 
+  } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      const messages = {
+        email: "Email already registered!",
+        phone: "Phone number already registered!",
+        nidNumber: "NID number already registered!",
+        shopName: "Shop name already taken!",
+      };
+      return res.status(409).json({ success: false, message: messages[field] || "Duplicate value error!" });
+    }
     console.log("Server error during vendor registration!", error);
     res.status(500).json({ message: "Server error during vendor registration!" });
   }

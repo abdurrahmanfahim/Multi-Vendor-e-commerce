@@ -3,9 +3,9 @@ const User = require("../models/User");
 
 exports.approveVendor = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const { id } = req.params;
 
-    const vendor = await User.findById(vendorId);
+    const vendor = await User.findById(id);
     if (!vendor) {
       return res.status(404).json({ error: "Vendor not found!" });
     }
@@ -69,7 +69,7 @@ exports.getApprovedVendors = async (req, res) => {
 
 exports.rejectVendor = async (req, res) => {
   try {
-    const { vendorId } = req.params;
+    const { id } = req.params;
     const { reason } = req.body;
 
     if (!reason) {
@@ -77,7 +77,7 @@ exports.rejectVendor = async (req, res) => {
     }
 
     const vendor = await User.findOneAndUpdate(
-      { _id: vendorId, role: "vendor", status: "pending" },
+      { _id: id, role: "vendor", status: "pending" },
       { status: "rejected", rejectReason: reason, rejectedAt: new Date() },
       { new: true },
     ).select(
